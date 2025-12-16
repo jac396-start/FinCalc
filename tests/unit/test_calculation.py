@@ -189,10 +189,15 @@ def test_calculation_base_valid(type_input: str, inputs: List[float], expected_t
 def test_calculation_base_invalid_inputs_count() -> None:
     """
     Test that validation fails when fewer than 2 inputs are provided.
+    
+    NOTE: Pydantic's 'min_items' validator triggers first (before custom validators),
+    raising a standard error about list length.
     """
     with pytest.raises(ValidationError) as excinfo:
         CalculationBase(type="addition", inputs=[1])
-    assert "At least two numbers are required" in str(excinfo.value)
+    
+    # Check for Pydantic's standard error message for min_items
+    assert "List should have at least 2 items" in str(excinfo.value)
 
 def test_calculation_base_division_by_zero() -> None:
     """
@@ -270,7 +275,9 @@ def test_calculation_update_validation_logic() -> None:
     """
     with pytest.raises(ValidationError) as excinfo:
         CalculationUpdate(inputs=[1]) # Too few items
-    assert "At least two numbers are required" in str(excinfo.value)
+    
+    # Check for Pydantic's standard error message for min_items
+    assert "List should have at least 2 items" in str(excinfo.value)
 
 
 # ---------------------------------------------

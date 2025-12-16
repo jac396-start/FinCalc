@@ -40,29 +40,74 @@ def test_user_registration(db_session, fake_user_data):
     assert user.verify_password("TestPass123") is True
 
 
-    def test_register_handles_unexpected_exception(monkeypatch):
-        """If User.register raises an unexpected exception, the API should return 500"""
-        from fastapi.testclient import TestClient
-        from app.main import app
+def test_register_handles_unexpected_exception(monkeypatch):
+    """If User.register raises an unexpected exception, the API should return 500"""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 
-        def fake_register(cls, db, user_data):
-            raise Exception("simulated db error")
+    def fake_register_programming(cls, db, user_data):
+        raise ProgrammingError("simulated programming error", None, None)
 
-        # Patch the classmethod
-        monkeypatch.setattr(User, "register", classmethod(fake_register))
+    # Patch the classmethod to raise a ProgrammingError
+    monkeypatch.setattr(User, "register", classmethod(fake_register_programming))
 
-        client = TestClient(app)
-        payload = {
-            "first_name": "Err",
-            "last_name": "Case",
-            "email": "err@example.com",
-            "username": "err_case",
-            "password": "Password123!",
-            "confirm_password": "Password123!"
-        }
-        resp = client.post('/auth/register', json=payload)
-        assert resp.status_code == 500
-        assert 'Internal server error' in resp.json().get('detail', '')
+    client = TestClient(app)
+    payload = {
+        "first_name": "Err",
+        "last_name": "Case",
+        "email": "err@example.com",
+        "username": "err_case",
+        "password": "Password123!",
+        "confirm_password": "Password123!"
+    }
+    resp = client.post('/auth/register', json=payload)
+    assert resp.status_code == 500
+    assert 'Database schema not initialized' in resp.json().get('detail', '')
+
+    def fake_register_sql(cls, db, user_data):
+        raise SQLAlchemyError("simulated db error")
+
+    # Patch the classmethod to raise a SQLAlchemyError
+    monkeypatch.setattr(User, "register", classmethod(fake_register_sql))
+
+    client = TestClient(app)
+    payload = {
+        "first_name": "Err",
+        "last_name": "Case",
+        "email": "err2@example.com",
+        "username": "err_case2",
+        "password": "Password123!",
+        "confirm_password": "Password123!"
+    }
+    resp = client.post('/auth/register', json=payload)
+    assert resp.status_code == 500
+    assert 'Database error' in resp.json().get('detail', '')
+
+
+def test_register_handles_unexpected_generic_exception(monkeypatch):
+    """If User.register raises a generic exception, the API should return 500"""
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    def fake_register(cls, db, user_data):
+        raise Exception("simulated generic error")
+
+    # Patch the classmethod
+    monkeypatch.setattr(User, "register", classmethod(fake_register))
+
+    client = TestClient(app)
+    payload = {
+        "first_name": "Err",
+        "last_name": "Case",
+        "email": "err2@example.com",
+        "username": "err_case2",
+        "password": "Password123!",
+        "confirm_password": "Password123!"
+    }
+    resp = client.post('/auth/register', json=payload)
+    assert resp.status_code == 500
+    assert 'Internal server error' in resp.json().get('detail', '')
 
 def test_duplicate_user_registration(db_session):
     """Test registration with duplicate email/username"""

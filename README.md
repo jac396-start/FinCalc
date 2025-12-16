@@ -201,10 +201,33 @@ docker run -it --rm <image-name>
 - **Without Docker**:
 
 ```bash
-python main.py
+# Start the app (this triggers DB table creation via startup events)
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# or (for quick runs)
+python -m app.main
 ```
 
-(or update this if the main script is different.)
+- **Initialize the database (Postgres)**:
+
+```bash
+# If using Postgres, ensure DB exists and run the init script
+# (expects POSTGRES_USER to be set)
+./init-db.sh
+```
+
+- **Notes for experimenting with the API / docs**:
+
+- The curl examples in the OpenAPI docs assume the server is running and DB tables exist (startup events create them).
+- If you run a small TestClient script, use the context manager so the app startup/shutdown events run and tables are created, e.g.:
+
+```python
+from fastapi.testclient import TestClient
+from app.main import app
+
+with TestClient(app) as client:
+    # Startup events run; now you can POST /auth/register and other endpoints
+    resp = client.post('/auth/register', json=payload)
+```
 
 - **With Docker**:
 

@@ -28,6 +28,7 @@ from fastapi.staticfiles import StaticFiles  # For serving static files (CSS, JS
 from fastapi.templating import Jinja2Templates  # For HTML templates
 
 from sqlalchemy.orm import Session  # SQLAlchemy database session
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError, ProgrammingError  # For catching DB errors on registration (e.g., missing tables)
 
 import uvicorn  # ASGI server for running FastAPI apps
 
@@ -366,6 +367,27 @@ def register(user_create: UserCreate, db: Session = Depends(get_db)):
     except ValueError as e:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except IntegrityError as e:
+        import logging
+        logging.exception("Database integrity error during user registration")
+        db.rollback()
+        # Map DB integrity errors to a 400 for duplicate username/email
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username or email already exists")
+    except ProgrammingError as e:
+        import logging
+        logging.exception("Database programming error during user registration (possible missing tables)")
+        db.rollback()
+        # Clear guidance for missing DB schema
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database schema not initialized. Please ensure the database exists and run migrations or start the app so tables are created."
+        )
+    except SQLAlchemyError as e:
+        import logging
+        logging.exception("Database error during user registration")
+        db.rollback()
+        # Return a general database error message without leaking DB internals
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error during registration")
     except Exception as e:
         import logging
         logging.exception("Unexpected error during user registration")
@@ -491,7 +513,7 @@ def list_calculations(
 # Read / Retrieve a Specific Calculation by ID
 @app.get("/calculations/{calc_id}", response_model=CalculationResponse, tags=["calculations"])
 def get_calculation(
-    calc_id: str,
+    calc_id: str = Path(..., description="UUID of the calculation to retrieve", example="123e4567-e89b-12d3-a456-426614174999"),
     current_user = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -516,8 +538,8 @@ def get_calculation(
 # Edit / Update a Calculation
 @app.put("/calculations/{calc_id}", response_model=CalculationResponse, tags=["calculations"])
 def update_calculation(
-    calc_id: str,
     calculation_update: CalculationUpdate,
+    calc_id: str = Path(..., description="UUID of the calculation to update", example="123e4567-e89b-12d3-a456-426614174999"),
     current_user = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -571,7 +593,7 @@ def update_calculation(
 # Delete a Calculation
 @app.delete("/calculations/{calc_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["calculations"])
 def delete_calculation(
-    calc_id: str,
+    calc_id: str = Path(..., description="UUID of the calculation to delete", example="123e4567-e89b-12d3-a456-426614174999"),
     current_user = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
