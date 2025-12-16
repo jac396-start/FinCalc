@@ -194,6 +194,11 @@ docker build -t <image-name> .
 docker run -it --rm <image-name>
 ```
 
+## Link to Docker Hub
+```
+- [Docker Hub Public View](https://hub.docker.com/r/jcrawford169/is601_final.x)
+```
+
 ---
 
 # 🚀 6. Running the Project
