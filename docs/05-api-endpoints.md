@@ -85,7 +85,7 @@ def list_calculations(
 ```python
 @app.get("/calculations/{calc_id}", response_model=CalculationResponse, tags=["calculations"])
 def get_calculation(
-    calc_id: str,
+    calc_id: str = Path(..., description="UUID of the calculation to retrieve", example="123e4567-e89b-12d3-a456-426614174999"),
     current_user = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -102,7 +102,7 @@ def get_calculation(
         Calculation.user_id == current_user.id
     ).first()
     if not calculation:
-        raise HTTPException(status_code=404, detail="Calculation not found.")
+        raise HTTPException(status_code=404, detail="Calculation not found. Confirm the ID exists and belongs to the authenticated user (use GET /calculations to list your IDs).")
 
     return calculation
 ```
@@ -112,8 +112,8 @@ def get_calculation(
 ```python
 @app.put("/calculations/{calc_id}", response_model=CalculationResponse, tags=["calculations"])
 def update_calculation(
-    calc_id: str,
     calculation_update: CalculationUpdate,
+    calc_id: str = Path(..., description="UUID of the calculation to update", example="123e4567-e89b-12d3-a456-426614174999"),
     current_user = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -130,7 +130,7 @@ def update_calculation(
         Calculation.user_id == current_user.id
     ).first()
     if not calculation:
-        raise HTTPException(status_code=404, detail="Calculation not found.")
+        raise HTTPException(status_code=404, detail="Calculation not found. Confirm the ID exists and belongs to the authenticated user (use GET /calculations to list your IDs).")
 
     if calculation_update.inputs is not None:
         calculation.inputs = calculation_update.inputs
@@ -147,7 +147,7 @@ def update_calculation(
 ```python
 @app.delete("/calculations/{calc_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["calculations"])
 def delete_calculation(
-    calc_id: str,
+    calc_id: str = Path(..., description="UUID of the calculation to delete", example="123e4567-e89b-12d3-a456-426614174999"),
     current_user = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -164,7 +164,7 @@ def delete_calculation(
         Calculation.user_id == current_user.id
     ).first()
     if not calculation:
-        raise HTTPException(status_code=404, detail="Calculation not found.")
+        raise HTTPException(status_code=404, detail="Calculation not found. Confirm the ID exists and belongs to the authenticated user (use GET /calculations to list your IDs).")
 
     db.delete(calculation)
     db.commit()
