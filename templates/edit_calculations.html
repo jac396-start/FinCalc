@@ -1,4 +1,3 @@
-
 {% extends "layout.html" %}
 {% block title %}Edit Calculation{% endblock %}
 
@@ -7,8 +6,7 @@
 
   <div 
     id="errorAlert" 
-    class="hidden bg-red-100 border border-red-500 text-red-800 
-           px-4 py-3 rounded-md mb-4"
+    class="hidden bg-red-100 border border-red-500 text-red-800 px-4 py-3 rounded-md mb-4"
   >
     <div class="flex items-center">
       <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -20,8 +18,7 @@
 
   <div 
     id="successAlert" 
-    class="hidden bg-green-100 border border-green-500 text-green-800 
-           px-4 py-3 rounded-md mb-4"
+    class="hidden bg-green-100 border border-green-500 text-green-800 px-4 py-3 rounded-md mb-4"
   >
     <div class="flex items-center">
       <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -88,8 +85,7 @@
           id="calcType"
           name="operation_type"
           required
-          class="block w-full rounded-md border-gray-300 shadow-sm 
-                 focus:border-red-500 focus:ring-red-500 py-2 px-3 capitalize"
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 py-2 px-3 capitalize"
         >
           <option value="addition">Addition</option>
           <option value="subtraction">Subtraction</option>
@@ -112,8 +108,7 @@
           name="inputs"
           placeholder="e.g. 5, 10, 15"
           required
-          class="block w-full rounded-md border-gray-300 shadow-sm 
-                 focus:border-red-500 focus:ring-red-500 py-2 px-3"
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 py-2 px-3"
         />
         <p class="mt-1 text-xs text-gray-500">
           Enter at least two numbers separated by commas
@@ -129,8 +124,7 @@
       <div class="flex space-x-3 pt-4">
         <button 
           type="submit"
-          class="bg-red-700 text-white px-6 py-2 rounded-md 
-                 hover:bg-red-800 transition-colors font-medium flex items-center"
+          class="bg-red-700 text-white px-6 py-2 rounded-md hover:bg-red-800 transition-colors font-medium flex items-center"
         >
           <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -139,8 +133,7 @@
         </button>
         <a 
           href="/dashboard"
-          class="bg-gray-300 text-gray-700 px-6 py-2 rounded-md 
-                 hover:bg-gray-400 transition-colors font-medium flex items-center"
+          class="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors font-medium flex items-center"
         >
           <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -156,16 +149,15 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', async function() {
-  // Global configuration (assumed to be correct from script.js)
   const API_BASE_URL = window.location.origin;
-  
   const token = localStorage.getItem('access_token');
+  
+  // Auth Check
   if (!token) {
     window.location.href = '/login';
     return;
   }
 
-  // Get the calculation ID from the template variable passed by the server
   const calcId = "{{ calc_id }}";
   let originalCalculation = null;
 
@@ -173,12 +165,10 @@ document.addEventListener('DOMContentLoaded', async function() {
   const loadingState = document.getElementById('loadingState');
   const editFormDiv = document.getElementById('editForm');
   const form = document.getElementById('updateForm');
-  const calcTypeSelect = document.getElementById('calcType'); // Changed ID reference
+  const calcTypeSelect = document.getElementById('calcType'); 
   const calcInputsInput = document.getElementById('calcInputs');
 
-
   // --- Helper Functions ---
-
   function showAlert(type, msg) {
     const errorAlert = document.getElementById('errorAlert');
     const successAlert = document.getElementById('successAlert');
@@ -187,7 +177,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     errorAlert.classList.add('hidden');
     successAlert.classList.add('hidden');
-    
+
     if (type === 'error') {
         errorMessage.textContent = msg;
         errorAlert.classList.remove('hidden');
@@ -199,55 +189,34 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
   }
 
-  function showError(msg) {
-    showAlert('error', msg);
-  }
-
-  function showSuccess(msg) {
-    showAlert('success', msg);
-  }
+  function showError(msg) { showAlert('error', msg); }
+  function showSuccess(msg) { showAlert('success', msg); }
 
   function getOperatorSymbol(type) {
-    const symbols = {
-      'addition': '+',
-      'subtraction': '-',
-      'multiplication': '×',
-      'division': '÷'
-    };
+    const symbols = { 'addition': '+', 'subtraction': '-', 'multiplication': '×', 'division': '÷' };
     return symbols[type] || '?';
   }
   
-  // NOTE: This client-side calculation should mirror your back-end logic
+  // Client-side math logic (Must match backend logic)
   function calculateResult(type, inputs) {
     if (!inputs || inputs.length < 2) return null;
-    
     let result;
     const numbers = inputs.map(Number);
 
     switch(type) {
-      case 'addition':
-        result = numbers.reduce((a, b) => a + b, 0);
-        break;
-      case 'subtraction':
-        result = numbers.reduce((a, b) => a - b);
-        break;
-      case 'multiplication':
-        result = numbers.reduce((a, b) => a * b, 1);
-        break;
+      case 'addition': result = numbers.reduce((a, b) => a + b, 0); break;
+      case 'subtraction': result = numbers.reduce((a, b) => a - b); break;
+      case 'multiplication': result = numbers.reduce((a, b) => a * b, 1); break;
       case 'division':
-        // Check for division by zero after the first element
-        const hasZeroDivisor = numbers.slice(1).some(b => b === 0);
-        if (hasZeroDivisor) return 'Error: Div by Zero';
+        if (numbers.slice(1).some(b => b === 0)) return 'Error: Div by Zero';
         result = numbers.reduce((a, b) => a / b);
         break;
-      default:
-        return null;
+      default: return null;
     }
-    // Use a consistent precision for display
     return isNaN(result) ? 'Error' : parseFloat(result.toFixed(5));
   }
   
-  // Function to update the Preview section (now uses calcTypeSelect)
+  // Live Preview Updater
   function updatePreview() {
     const inputString = calcInputsInput.value.trim();
     const previewSection = document.getElementById('previewSection');
@@ -260,16 +229,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     try {
-        const type = calcTypeSelect.value; // Get value from the <select> element
+        const type = calcTypeSelect.value;
         const inputs = inputString.split(',').map(s => {
             const num = parseFloat(s.trim());
             if (isNaN(num)) throw new Error('Invalid number format.');
             return num;
         });
 
-        if (inputs.length < 2) {
-            throw new Error('Need at least two numbers.');
-        }
+        if (inputs.length < 2) throw new Error('Need at least two numbers.');
 
         const symbol = getOperatorSymbol(type);
         const expression = inputs.join(` ${symbol} `);
@@ -278,25 +245,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         previewExpression.textContent = expression;
         previewResult.textContent = result;
         previewSection.classList.remove('hidden');
-        showError(''); // Clear any previous error if successful
-
+        showError(''); 
     } catch (e) {
-        // Show error in the main alert, but keep preview hidden
         previewSection.classList.add('hidden');
-        showError(e.message);
+        // Optional: Don't show error aggressively on every keystroke, only on submit
     }
   }
 
-  // Add input listener for live preview
+  // Event Listeners
   calcInputsInput.addEventListener('input', updatePreview);
-  calcTypeSelect.addEventListener('change', updatePreview); // Listen to type change
+  calcTypeSelect.addEventListener('change', updatePreview);
 
-  // Function to load the calculation data
+  // Load Initial Data
   async function fetchCalculationDetails() {
-    if (!calcId) {
-        loadingState.innerHTML = '<p class="text-red-700">Error: Calculation ID is missing.</p>';
-        return;
-    }
+    if (!calcId) return;
     
     try {
         const response = await fetch(`${API_BASE_URL}/calculations/${calcId}`, {
@@ -313,34 +275,28 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         originalCalculation = await response.json();
+
+        // Populate Form
+        document.getElementById('currentType').textContent = originalCalculation.type;
+        document.getElementById('currentInputs').textContent = originalCalculation.inputs.join(', ');
+        document.getElementById('currentResult').textContent = parseFloat(originalCalculation.result).toFixed(2);
         
-        // Populate form fields and current info
-document.getElementById('currentType').textContent = originalCalculation.type;
-    document.getElementById('currentInputs').textContent = originalCalculation.inputs.join(', ');
-    document.getElementById('currentResult').textContent = parseFloat(originalCalculation.result).toFixed(2);
-    
-    calcTypeSelect.value = originalCalculation.type; // Set the selected value
+        calcTypeSelect.value = originalCalculation.type;
         calcInputsInput.value = originalCalculation.inputs.join(', ');
         
-        // Show the form and hide the loading state
         loadingState.classList.add('hidden');
         editFormDiv.classList.remove('hidden');
         
-        // Run preview once to show current data
-        updatePreview();
-
+        updatePreview(); // Show preview immediately
     } catch (error) {
         console.error('Fetch Error:', error);
         loadingState.innerHTML = `<p class="text-red-700">Could not load calculation: ${error.message}</p>`;
-        showError(error.message);
     }
   }
 
-  // Load data on page load
   fetchCalculationDetails();
 
-
-  // --- The updateForm Submission Handler for PUT/Edit ---
+  // --- SUBMISSION HANDLER (INTEGRATED PART 3) ---
   form.addEventListener('submit', async function(event) {
       event.preventDefault();
       
@@ -351,34 +307,31 @@ document.getElementById('currentType').textContent = originalCalculation.type;
       submitButton.innerHTML = '<svg class="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Saving...';
 
       try {
-          // 1. Parse and validate inputs
-          const newOperationType = calcTypeSelect.value; // Get the new operation type
+          // 1. Get Values
+          const newOperationType = calcTypeSelect.value;
           const inputString = calcInputsInput.value.trim();
+          
+          // 2. Parse Inputs
           const inputsArray = inputString.split(',').map(s => {
               const num = parseFloat(s.trim());
               if (isNaN(num)) throw new Error('Invalid number format in inputs.');
               return num;
           });
 
-          if (inputsArray.length < 2) {
-              throw new Error('Please enter at least two numbers.');
-          }
+          if (inputsArray.length < 2) throw new Error('Please enter at least two numbers.');
           
-          // Client-side validation (e.g., division by zero)
+          // 3. Client Validation
           const newResult = calculateResult(newOperationType, inputsArray);
-          if (String(newResult).startsWith('Error')) {
-              throw new Error(newResult);
-          }
+          if (String(newResult).startsWith('Error')) throw new Error(newResult);
 
+          // 4. Prepare Payload (Includes both Type and Inputs)
           const updateData = {
-              type: newOperationType, // CRITICAL: include `type` field expected by API
+              type: newOperationType,  // This matches the new Backend Schema
               inputs: inputsArray,
           };
 
-          // 2. Construct the correct PUT URL with the calculation ID
+          // 5. Send Request
           const url = `${API_BASE_URL}/calculations/${calcId}`;
-          
-          // 3. Send the PUT request
           const response = await fetch(url, {
               method: 'PUT',
               headers: {
@@ -387,7 +340,7 @@ document.getElementById('currentType').textContent = originalCalculation.type;
               },
               body: JSON.stringify(updateData),
           });
-          
+
           if (!response.ok) {
               const errorData = await response.json();
               throw new Error(errorData.detail || 'Failed to update calculation.');
@@ -395,16 +348,13 @@ document.getElementById('currentType').textContent = originalCalculation.type;
           
           showSuccess('Calculation updated successfully! Redirecting...');
           
-          // Redirect after successful update
           setTimeout(() => {
               window.location.href = '/dashboard';
           }, 1000);
 
       } catch (error) {
-          // Display the specific error message from the API or validation
           showError(error.message || 'An unknown error occurred during update.');
       } finally {
-          // Restore button state
           submitButton.disabled = false;
           submitButton.innerHTML = originalButtonContent;
       }
@@ -413,4 +363,3 @@ document.getElementById('currentType').textContent = originalCalculation.type;
 });
 </script>
 {% endblock %}
-

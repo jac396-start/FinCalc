@@ -18,10 +18,10 @@ The application follows a RESTful API design with proper separation of concerns:
 from contextlib import asynccontextmanager  # Used for startup/shutdown events
 from datetime import datetime, timezone, timedelta
 from uuid import UUID  # For type validation of UUIDs in path parameters
-from typing import List
+from typing import List, Optional
 
 # FastAPI imports
-from fastapi import Body, FastAPI, Depends, HTTPException, status, Request, Form
+from fastapi import Body, FastAPI, Depends, HTTPException, status, Request, Form, Query, Path
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles  # For serving static files (CSS, JS)
@@ -69,16 +69,31 @@ async def lifespan(app: FastAPI):
     # Cleanup code would go here (after yield), but we don't need any
 
 # Initialize the FastAPI application with metadata and lifespan
+# Update your FastAPI app initialization to include security scheme
 app = FastAPI(
     title="Calculations API",
     description="API for managing calculations",
     version="1.0.0",
-    lifespan=lifespan  # Pass our lifespan context manager
+    lifespan=lifespan,
+    # Add this for Swagger UI authentication
+    swagger_ui_parameters={
+        "persistAuthorization": True,  # Keep auth token after refresh
+    }
 )
+
+# Make sure your OAuth2PasswordBearer is properly configured
+# It should already be imported, but verify it's pointing to the right URL
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")  # or "auth/login"
+
+# Update your get_current_active_user dependency to use oauth2_scheme
+# (This should already be in app/auth/dependencies.py)
 
 # ------------------------------------------------------------------------------
 # Static Files and Templates Configuration
 # ------------------------------------------------------------------------------
+
 # Mount the static files directory for serving CSS, JS, and images
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -181,18 +196,6 @@ INTEGRATION STEPS:
 Author: [Your Name]
 Date: December 2025
 """
-
-# ========== ADD THESE IMPORTS AT TOP OF main.py ==========
-from app.operations.statistics import (
-    calculate_user_statistics,
-    get_paginated_history,
-    get_operation_statistics
-)
-from typing import Optional
-from fastapi import Query, Path
-
-
-# ========== ADD THESE ROUTES AFTER YOUR EXISTING CALCULATION ROUTES ==========
 
 @app.get(
     "/api/statistics",
@@ -317,8 +320,9 @@ def get_operation_stats(
             detail=f"Error retrieving operation statistics: {str(e)}"
         )
 
-
-# ========== ADD THIS HTML ROUTE FOR REPORTS PAGE ==========
+# ------------------------------------------------------------------------------
+# Reports Endpoint
+# ------------------------------------------------------------------------------
 
 @app.get("/reports", response_class=HTMLResponse, tags=["web"])
 def reports_page(request: Request):

@@ -1,12 +1,30 @@
-# tests/unit/test_calculator.py
+# tests/unit/test_calculation.py
 
 import pytest  # Import the pytest framework for writing and running tests
-from typing import Union  # Import Union for type hinting multiple possible types
-from app.operations import add, subtract, multiply, divide  # Import the calculator functions from the operations module
+from typing import Union, List, Optional  # Import types for hinting
+from uuid import uuid4
+from datetime import datetime
+from pydantic import ValidationError
+
+# Import the calculator functions from the operations module
+from app.operations import add, subtract, multiply, divide
+
+# Import the schema definitions to be tested
+from app.schemas.calculations import (
+    CalculationBase,
+    CalculationCreate,
+    CalculationUpdate,
+    CalculationResponse,
+    CalculationType
+)
 
 # Define a type alias for numbers that can be either int or float
 Number = Union[int, float]
 
+
+# =============================================================================
+# PART 1: Unit Tests for Calculator Operations
+# =============================================================================
 
 # ---------------------------------------------
 # Unit Tests for the 'add' Function
@@ -19,7 +37,7 @@ Number = Union[int, float]
         (-2, -3, -5),        # Test adding two negative integers
         (2.5, 3.5, 6.0),     # Test adding two positive floats
         (-2.5, 3.5, 1.0),    # Test adding a negative float and a positive float
-        (0, 0, 0),            # Test adding zeros
+        (0, 0, 0),           # Test adding zeros
     ],
     ids=[
         "add_two_positive_integers",
@@ -32,28 +50,8 @@ Number = Union[int, float]
 def test_add(a: Number, b: Number, expected: Number) -> None:
     """
     Test the 'add' function with various combinations of integers and floats.
-
-    This parameterized test verifies that the 'add' function correctly adds two numbers,
-    whether they are positive, negative, integers, or floats. By using parameterization,
-    we can efficiently test multiple scenarios without redundant code.
-
-    Parameters:
-    - a (Number): The first number to add.
-    - b (Number): The second number to add.
-    - expected (Number): The expected result of the addition.
-
-    Steps:
-    1. Call the 'add' function with arguments 'a' and 'b'.
-    2. Assert that the result is equal to 'expected'.
-
-    Example:
-    >>> test_add(2, 3, 5)
-    >>> test_add(-2, -3, -5)
     """
-    # Call the 'add' function with the provided arguments
     result = add(a, b)
-    
-    # Assert that the result of add(a, b) matches the expected value
     assert result == expected, f"Expected add({a}, {b}) to be {expected}, but got {result}"
 
 
@@ -68,7 +66,7 @@ def test_add(a: Number, b: Number, expected: Number) -> None:
         (-5, -3, -2),        # Test subtracting a negative integer from another negative integer
         (5.5, 2.5, 3.0),     # Test subtracting two positive floats
         (-5.5, -2.5, -3.0),  # Test subtracting two negative floats
-        (0, 0, 0),            # Test subtracting zeros
+        (0, 0, 0),           # Test subtracting zeros
     ],
     ids=[
         "subtract_two_positive_integers",
@@ -81,28 +79,8 @@ def test_add(a: Number, b: Number, expected: Number) -> None:
 def test_subtract(a: Number, b: Number, expected: Number) -> None:
     """
     Test the 'subtract' function with various combinations of integers and floats.
-
-    This parameterized test verifies that the 'subtract' function correctly subtracts the
-    second number from the first, handling both positive and negative values, as well as
-    integers and floats. Parameterization allows for comprehensive testing of multiple cases.
-
-    Parameters:
-    - a (Number): The number from which to subtract.
-    - b (Number): The number to subtract.
-    - expected (Number): The expected result of the subtraction.
-
-    Steps:
-    1. Call the 'subtract' function with arguments 'a' and 'b'.
-    2. Assert that the result is equal to 'expected'.
-
-    Example:
-    >>> test_subtract(5, 3, 2)
-    >>> test_subtract(-5, -3, -2)
     """
-    # Call the 'subtract' function with the provided arguments
     result = subtract(a, b)
-    
-    # Assert that the result of subtract(a, b) matches the expected value
     assert result == expected, f"Expected subtract({a}, {b}) to be {expected}, but got {result}"
 
 
@@ -117,7 +95,7 @@ def test_subtract(a: Number, b: Number, expected: Number) -> None:
         (-2, 3, -6),         # Test multiplying a negative integer with a positive integer
         (2.5, 4.0, 10.0),    # Test multiplying two positive floats
         (-2.5, 4.0, -10.0),  # Test multiplying a negative float with a positive float
-        (0, 5, 0),            # Test multiplying zero with a positive integer
+        (0, 5, 0),           # Test multiplying zero with a positive integer
     ],
     ids=[
         "multiply_two_positive_integers",
@@ -130,28 +108,8 @@ def test_subtract(a: Number, b: Number, expected: Number) -> None:
 def test_multiply(a: Number, b: Number, expected: Number) -> None:
     """
     Test the 'multiply' function with various combinations of integers and floats.
-
-    This parameterized test verifies that the 'multiply' function correctly multiplies two numbers,
-    handling both positive and negative values, as well as integers and floats. Parameterization
-    enables efficient testing of multiple scenarios in a concise manner.
-
-    Parameters:
-    - a (Number): The first number to multiply.
-    - b (Number): The second number to multiply.
-    - expected (Number): The expected result of the multiplication.
-
-    Steps:
-    1. Call the 'multiply' function with arguments 'a' and 'b'.
-    2. Assert that the result is equal to 'expected'.
-
-    Example:
-    >>> test_multiply(2, 3, 6)
-    >>> test_multiply(-2, 3, -6)
     """
-    # Call the 'multiply' function with the provided arguments
     result = multiply(a, b)
-    
-    # Assert that the result of multiply(a, b) matches the expected value
     assert result == expected, f"Expected multiply({a}, {b}) to be {expected}, but got {result}"
 
 
@@ -166,7 +124,7 @@ def test_multiply(a: Number, b: Number, expected: Number) -> None:
         (-6, 3, -2.0),         # Test dividing a negative integer by a positive integer
         (6.0, 3.0, 2.0),       # Test dividing two positive floats
         (-6.0, 3.0, -2.0),     # Test dividing a negative float by a positive float
-        (0, 5, 0.0),            # Test dividing zero by a positive integer
+        (0, 5, 0.0),           # Test dividing zero by a positive integer
     ],
     ids=[
         "divide_two_positive_integers",
@@ -179,28 +137,8 @@ def test_multiply(a: Number, b: Number, expected: Number) -> None:
 def test_divide(a: Number, b: Number, expected: float) -> None:
     """
     Test the 'divide' function with various combinations of integers and floats.
-
-    This parameterized test verifies that the 'divide' function correctly divides the first
-    number by the second, handling both positive and negative values, as well as integers
-    and floats. Parameterization allows for efficient and comprehensive testing across multiple cases.
-
-    Parameters:
-    - a (Number): The dividend.
-    - b (Number): The divisor.
-    - expected (float): The expected result of the division.
-
-    Steps:
-    1. Call the 'divide' function with arguments 'a' and 'b'.
-    2. Assert that the result is equal to 'expected'.
-
-    Example:
-    >>> test_divide(6, 3, 2.0)
-    >>> test_divide(-6, 3, -2.0)
     """
-    # Call the 'divide' function with the provided arguments
     result = divide(a, b)
-    
-    # Assert that the result of divide(a, b) matches the expected value
     assert result == expected, f"Expected divide({a}, {b}) to be {expected}, but got {result}"
 
 
@@ -211,24 +149,150 @@ def test_divide(a: Number, b: Number, expected: float) -> None:
 def test_divide_by_zero() -> None:
     """
     Test the 'divide' function with division by zero.
-
-    This negative test case verifies that attempting to divide by zero raises a ValueError
-    with the appropriate error message. It ensures that the application correctly handles
-    invalid operations and provides meaningful feedback to the user.
-
-    Steps:
-    1. Attempt to call the 'divide' function with arguments 6 and 0, which should raise a ValueError.
-    2. Use pytest's 'raises' context manager to catch the expected exception.
-    3. Assert that the error message contains "Cannot divide by zero!".
-
-    Example:
-    >>> test_divide_by_zero()
     """
-    # Use pytest's context manager to check for a ValueError when dividing by zero
     with pytest.raises(ValueError) as excinfo:
-        # Attempt to divide 6 by 0, which should raise a ValueError
         divide(6, 0)
     
-    # Assert that the exception message contains the expected error message
-    assert "Cannot divide by zero!" in str(excinfo.value), \
-        f"Expected error message 'Cannot divide by zero!', but got '{excinfo.value}'"
+    assert "Cannot divide by zero!" in str(excinfo.value)
+
+
+# =============================================================================
+# PART 2: Unit Tests for Calculation Schemas
+# =============================================================================
+
+# ---------------------------------------------
+# Tests for CalculationBase Validation
+# ---------------------------------------------
+
+@pytest.mark.parametrize(
+    "type_input, inputs, expected_type",
+    [
+        ("addition", [1, 2], CalculationType.ADDITION),
+        ("ADDITION", [1, 2], CalculationType.ADDITION),  # Case insensitivity
+        ("multiplication", [3.5, 2], CalculationType.MULTIPLICATION),
+        ("division", [10, 2], CalculationType.DIVISION),
+    ],
+    ids=["valid_lowercase", "valid_uppercase", "valid_float_inputs", "valid_division"]
+)
+def test_calculation_base_valid(type_input: str, inputs: List[float], expected_type: CalculationType) -> None:
+    """
+    Test successful creation of CalculationBase with valid data.
+    
+    Verifies that:
+    1. Valid types are accepted (case-insensitive).
+    2. Inputs are stored correctly.
+    """
+    calc = CalculationBase(type=type_input, inputs=inputs)
+    assert calc.type == expected_type
+    assert calc.inputs == inputs
+
+def test_calculation_base_invalid_inputs_count() -> None:
+    """
+    Test that validation fails when fewer than 2 inputs are provided.
+    """
+    with pytest.raises(ValidationError) as excinfo:
+        CalculationBase(type="addition", inputs=[1])
+    assert "At least two numbers are required" in str(excinfo.value)
+
+def test_calculation_base_division_by_zero() -> None:
+    """
+    Test that schema validation catches division by zero attempts.
+    
+    The schema should raise a ValueError if the operation is division
+    and any number after the first is zero.
+    """
+    with pytest.raises(ValidationError) as excinfo:
+        CalculationBase(type="division", inputs=[10, 0])
+    assert "Cannot divide by zero" in str(excinfo.value)
+
+def test_calculation_base_invalid_type() -> None:
+    """
+    Test that invalid calculation types are rejected.
+    """
+    with pytest.raises(ValidationError) as excinfo:
+        CalculationBase(type="modulo", inputs=[10, 2])
+    assert "Type must be one of" in str(excinfo.value)
+
+
+# ---------------------------------------------
+# Tests for CalculationCreate
+# ---------------------------------------------
+
+def test_calculation_create_requires_user_id() -> None:
+    """
+    Test that CalculationCreate requires a valid user_id UUID.
+    """
+    user_id = uuid4()
+    calc = CalculationCreate(
+        type="addition", 
+        inputs=[1, 2], 
+        user_id=user_id
+    )
+    assert calc.user_id == user_id
+
+def test_calculation_create_missing_user_id() -> None:
+    """
+    Test that missing user_id raises a validation error.
+    """
+    with pytest.raises(ValidationError) as excinfo:
+        CalculationCreate(type="addition", inputs=[1, 2])
+    assert "Field required" in str(excinfo.value)
+
+
+# ---------------------------------------------
+# Tests for CalculationUpdate
+# ---------------------------------------------
+
+@pytest.mark.parametrize(
+    "update_data",
+    [
+        {"inputs": [5, 5]},                # Update only inputs
+        {"type": "subtraction"},           # Update only type
+        {"type": "division", "inputs": [20, 2]} # Update both
+    ],
+    ids=["update_inputs_only", "update_type_only", "update_both"]
+)
+def test_calculation_update_partial(update_data: dict) -> None:
+    """
+    Test that CalculationUpdate supports partial updates.
+    """
+    update = CalculationUpdate(**update_data)
+    for key, value in update_data.items():
+        if key == "type":
+            # Convert string input to Enum for comparison
+            assert getattr(update, key) == CalculationType(value)
+        else:
+            assert getattr(update, key) == value
+
+def test_calculation_update_validation_logic() -> None:
+    """
+    Test that validation logic (min items) applies to updates as well.
+    """
+    with pytest.raises(ValidationError) as excinfo:
+        CalculationUpdate(inputs=[1]) # Too few items
+    assert "At least two numbers are required" in str(excinfo.value)
+
+
+# ---------------------------------------------
+# Tests for CalculationResponse
+# ---------------------------------------------
+
+def test_calculation_response_serialization() -> None:
+    """
+    Test that CalculationResponse correctly serializes all fields,
+    including timestamps and IDs.
+    """
+    data = {
+        "id": uuid4(),
+        "user_id": uuid4(),
+        "type": "addition",
+        "inputs": [10, 5],
+        "result": 15.0,
+        "created_at": datetime.now(),
+        "updated_at": datetime.now()
+    }
+    
+    response = CalculationResponse(**data)
+    assert response.result == 15.0
+    assert response.type == CalculationType.ADDITION
+    assert isinstance(response.created_at, datetime)
