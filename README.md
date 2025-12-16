@@ -218,6 +218,7 @@ python -m app.main
 - **Notes for experimenting with the API / docs**:
 
 - The curl examples in the OpenAPI docs assume the server is running and DB tables exist (startup events create them).
+- Example tokens shown in the OpenAPI UI are illustrative only and do not necessarily correspond to real users in your local database; using them against a running server may return 401/404 or create resource errors. To exercise the examples, either register a user (POST /auth/register) and use the returned token or start the app (which creates the DB tables) and use a TestClient as shown below.
 - If you run a small TestClient script, use the context manager so the app startup/shutdown events run and tables are created, e.g.:
 
 ```python
@@ -229,6 +230,24 @@ with TestClient(app) as client:
     resp = client.post('/auth/register', json=payload)
 ```
 
+- Quick curl example (requires jq to parse JSON):
+
+```bash
+# 1) Login and extract access token
+TOKEN=$(curl -s -X POST "http://localhost:8000/auth/login" -H "Content-Type: application/json" -d '{"username":"johndoe","password":"Passw0rd!"}' | jq -r .access_token)
+
+# 2) Create a calculation and capture its id
+CALC_ID=$(curl -s -X POST "http://localhost:8000/calculations" -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"type":"addition","inputs":[10.5,3,2]}' | jq -r .id)
+
+# 3) Use the auth token and calc id to GET / PUT / DELETE
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/calculations/$CALC_ID"
+curl -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"type":"addition","inputs":[42,7]}' "http://localhost:8000/calculations/$CALC_ID"
+curl -X DELETE -H "Authorization: Bearer $TOKEN" "http://localhost:8000/calculations/$CALC_ID"
+```
+
+Notes:
+- Example tokens shown in the OpenAPI UI are illustrative only and may not correspond to real users in your local database; register a user or use the TestClient context above before using the examples.
+- You can list your calculations with `curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/calculations` to see available `id` values for your account.
 - **With Docker**:
 
 ```bash
