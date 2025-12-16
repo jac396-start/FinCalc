@@ -516,6 +516,40 @@ class TestCalculationHistory:
         expect(logged_in_page.locator("#successAlert")).to_be_visible(timeout=5000)
 
     @pytest.mark.e2e
+    def test_edit_changes_operation_type_updates_result(self, logged_in_page: Page):
+        """Test that editing a calculation's operation type updates the result shown in the dashboard"""
+        # Create a calculation (multiplication 3 * 4 = 12)
+        logged_in_page.locator("#calcType").select_option("multiplication")
+        logged_in_page.locator("#calcInputs").fill("3,4")
+        logged_in_page.locator("#calculationForm button[type='submit']").click()
+        logged_in_page.wait_for_timeout(1000)
+
+        # Find the row for our calculation by inputs and click Edit
+        row = logged_in_page.locator('#calculationsTable tr', has_text='3, 4').first
+        edit_link = row.locator('a', has_text='Edit')
+        edit_link.click()
+
+        # Ensure we are on the edit page and capture the calc id from the URL
+        logged_in_page.wait_for_url(re.compile('.*/dashboard/edit/.*'), timeout=5000)
+        m = re.search(r'/dashboard/edit/([0-9a-fA-F-]+)', logged_in_page.url)
+        assert m, "Could not determine calculation id from edit URL"
+        calc_id = m.group(1)
+
+        # Change operation type to addition and submit (3 + 4 = 7)
+        logged_in_page.locator('#calcType').select_option('addition')
+        logged_in_page.locator('#updateForm button[type="submit"]').click()
+
+        # Wait for redirect back to dashboard
+        logged_in_page.wait_for_url(re.compile('.*/dashboard'), timeout=10000)
+        logged_in_page.wait_for_timeout(1000)
+
+        # Locate the updated row by calc id and verify result changed to 7
+        updated_row = logged_in_page.locator(f'xpath=//a[@href="/dashboard/edit/{calc_id}"]/ancestor::tr').first
+        # Result is the third column (0-based index 2)
+        result_cell = updated_row.locator('td').nth(2)
+        expect(result_cell).to_contain_text('7')
+
+    @pytest.mark.e2e
     def test_empty_history_message(self, logged_in_page: Page):
         """Test that empty history shows appropriate message"""
         # On a fresh login, history should be empty or show message
@@ -525,6 +559,24 @@ class TestCalculationHistory:
         content = table.text_content()
         # This will pass if either no calculations exist or message is shown
         assert "No calculations" in content or content.strip() == ""
+
+    @pytest.mark.e2e
+    def test_registration_requires_special_character(self, page: Page, base_url: str):
+        """Test registration enforces special character requirement on password (client-side)"""
+        page.goto(f"{base_url}/register")
+
+        page.locator("#username").fill(f"specchar_{fake.random_number(digits=6)}")
+        page.locator("#email").fill(fake.email())
+        page.locator("#first_name").fill(fake.first_name())
+        page.locator("#last_name").fill(fake.last_name())
+        # Password missing special character
+        page.locator("#password").fill("Password123")
+        page.locator("#confirm_password").fill("Password123")
+        page.locator("button[type='submit']").click()
+
+        # Should show error about password strength
+        expect(page.locator("#errorAlert")).to_be_visible(timeout=5000)
+        expect(page.locator("#errorMessage")).to_contain_text("special")
 
 
 # ======================================================================================

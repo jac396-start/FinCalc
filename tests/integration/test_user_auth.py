@@ -39,6 +39,31 @@ def test_user_registration(db_session, fake_user_data):
     assert user.is_verified is False
     assert user.verify_password("TestPass123") is True
 
+
+    def test_register_handles_unexpected_exception(monkeypatch):
+        """If User.register raises an unexpected exception, the API should return 500"""
+        from fastapi.testclient import TestClient
+        from app.main import app
+
+        def fake_register(cls, db, user_data):
+            raise Exception("simulated db error")
+
+        # Patch the classmethod
+        monkeypatch.setattr(User, "register", classmethod(fake_register))
+
+        client = TestClient(app)
+        payload = {
+            "first_name": "Err",
+            "last_name": "Case",
+            "email": "err@example.com",
+            "username": "err_case",
+            "password": "Password123!",
+            "confirm_password": "Password123!"
+        }
+        resp = client.post('/auth/register', json=payload)
+        assert resp.status_code == 500
+        assert 'Internal server error' in resp.json().get('detail', '')
+
 def test_duplicate_user_registration(db_session):
     """Test registration with duplicate email/username"""
     # First user data

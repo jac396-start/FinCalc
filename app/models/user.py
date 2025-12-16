@@ -250,7 +250,7 @@ class User(Base):
             str: JWT access token
         """
         from app.auth.jwt import create_token
-        from app.schemas.token import TokenType
+        from app.schemas.tokens import TokenType
         return create_token(data["sub"], TokenType.ACCESS)
 
     @classmethod
@@ -265,7 +265,7 @@ class User(Base):
             str: JWT refresh token
         """
         from app.auth.jwt import create_token
-        from app.schemas.token import TokenType
+        from app.schemas.tokens import TokenType
         return create_token(data["sub"], TokenType.REFRESH)
 
     @classmethod

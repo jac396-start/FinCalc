@@ -175,12 +175,16 @@ class CalculationUpdate(BaseModel):
     """
     Schema for updating an existing Calculation.
     
-    This schema is more restrictive than the create schema, as it only allows
-    updating the inputs. The calculation type cannot be changed once created.
-    
-    Note that all fields are optional (so clients can send partial updates),
-    but if inputs are provided, they must pass validation.
+    This schema allows updating the `type` and/or `inputs` of a calculation.
+    Both fields are optional so clients can send partial updates. Validation
+    ensures provided inputs are valid.
     """
+    type: Optional[CalculationType] = Field(
+        None,
+        description="(Optional) New calculation type",
+        example="addition"
+    )
+
     inputs: Optional[List[float]] = Field(
         None,  # None means this field is optional
         description="Updated list of numeric inputs for the calculation",
@@ -212,7 +216,7 @@ class CalculationUpdate(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True,
-        json_schema_extra={"example": {"inputs": [42, 7]}}
+        json_schema_extra={"example": {"type": "addition", "inputs": [42, 7]}}
     )
 
 class CalculationResponse(CalculationBase):

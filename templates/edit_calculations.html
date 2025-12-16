@@ -315,11 +315,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         originalCalculation = await response.json();
         
         // Populate form fields and current info
-        document.getElementById('currentType').textContent = originalCalculation.operation_type;
-        document.getElementById('currentInputs').textContent = originalCalculation.inputs.join(', ');
-        document.getElementById('currentResult').textContent = parseFloat(originalCalculation.result).toFixed(2);
-        
-        calcTypeSelect.value = originalCalculation.operation_type; // Set the selected value
+document.getElementById('currentType').textContent = originalCalculation.type;
+    document.getElementById('currentInputs').textContent = originalCalculation.inputs.join(', ');
+    document.getElementById('currentResult').textContent = parseFloat(originalCalculation.result).toFixed(2);
+    
+    calcTypeSelect.value = originalCalculation.type; // Set the selected value
         calcInputsInput.value = originalCalculation.inputs.join(', ');
         
         // Show the form and hide the loading state
@@ -371,7 +371,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           }
 
           const updateData = {
-              operation_type: newOperationType, // CRITICAL: Include the new operation type
+              type: newOperationType, // CRITICAL: include `type` field expected by API
               inputs: inputsArray,
           };
 

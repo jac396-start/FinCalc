@@ -36,7 +36,7 @@ from app.auth.dependencies import get_current_active_user  # Authentication depe
 from app.models.calculation import Calculation  # Database model for calculations
 from app.models.user import User  # Database model for users
 from app.schemas.calculation import CalculationBase, CalculationResponse, CalculationUpdate  # API request/response schemas
-from app.schemas.token import TokenResponse  # API token schema
+from app.schemas.tokens import TokenResponse  # API token schema
 from app.schemas.user import UserCreate, UserResponse, UserLogin  # User schemas
 from app.database import Base, get_db, engine  # Database connection
 from typing import List
@@ -165,7 +165,8 @@ def edit_calculation_page(request: Request, calc_id: str):
     Returns:
         HTMLResponse: Rendered template with calculation ID passed to frontend
     """
-    return templates.TemplateResponse("edit_calculation.html", {"request": request, "calc_id": calc_id})
+    # Template file is named `edit_calculations.html` in the templates directory
+    return templates.TemplateResponse("edit_calculations.html", {"request": request, "calc_id": calc_id})
 
 """
 Statistics and History API Routes
@@ -361,6 +362,11 @@ def register(user_create: UserCreate, db: Session = Depends(get_db)):
     except ValueError as e:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        import logging
+        logging.exception("Unexpected error during user registration")
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error during registration")
 
 
 # ------------------------------------------------------------------------------
@@ -526,9 +532,31 @@ def update_calculation(
     if not calculation:
         raise HTTPException(status_code=404, detail="Calculation not found.")
 
+    # Apply updates: optionally update type and/or inputs
+    updated = False
+    if getattr(calculation_update, 'type', None) is not None:
+        # Accept either enum value or raw string
+        new_type = calculation_update.type.value if hasattr(calculation_update.type, 'value') else calculation_update.type
+        calculation.type = new_type
+        updated = True
+
     if calculation_update.inputs is not None:
         calculation.inputs = calculation_update.inputs
-        calculation.result = calculation.get_result()
+        updated = True
+
+    if updated:
+        # Recalculate the result after any change.
+        # Note: The SQLAlchemy instance's Python class (subclass) may not match
+        # a changed `type` column; construct a temporary Calculation of the
+        # desired type to compute the result reliably.
+        try:
+            calc_type_for_calc = calculation.type
+            inputs_for_calc = calculation.inputs
+            temp = Calculation.create(calc_type_for_calc, calculation.user_id, inputs_for_calc)
+            calculation.result = temp.get_result()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     calculation.updated_at = datetime.utcnow()
     db.commit()

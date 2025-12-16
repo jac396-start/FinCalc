@@ -8,8 +8,8 @@ from .user import (
     PasswordUpdate
 )
 
-from .token import Token, TokenData, TokenResponse
-from .calculation import (
+from .tokens import Token, TokenData, TokenResponse
+from .calculations import (
     CalculationType,
     CalculationBase,
     CalculationCreate,

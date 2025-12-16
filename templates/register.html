@@ -80,7 +80,7 @@
           </div>
           <div class="mt-1">
             <p class="text-xs text-gray-500">
-              Must be at least 8 characters and include uppercase, lowercase, and numbers
+              Must be at least 8 characters and include uppercase, lowercase, numbers, and a special character
             </p>
           </div>
         </div>
@@ -165,10 +165,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper function to validate password strength
     function isValidPassword(password) {
-        return password.length >= 8 && // at least 8 characters
+        // At least 8 chars, one uppercase, one lowercase, one number, one special char
+        return password.length >= 8 &&
                /[A-Z]/.test(password) && // at least one uppercase
                /[a-z]/.test(password) && // at least one lowercase
-               /[0-9]/.test(password); // at least one number
+               /[0-9]/.test(password) && // at least one number
+               /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(password); // at least one special char
     }
     
     // Helper function to add validation styling
@@ -220,9 +222,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (!isValidPassword(formData.password)) {
-            setInputValidation(form.password, false);
-            if (!hasErrors) showError('Password must be at least 8 characters long and contain uppercase, lowercase, and numbers');
-            hasErrors = true;
+          setInputValidation(form.password, false);
+          if (!hasErrors) showError('Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and a special character');
+          hasErrors = true;
         }
 
         if (formData.password !== formData.confirm_password) {
