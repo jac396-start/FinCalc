@@ -1,54 +1,50 @@
+FROM python:3.11-slim
 
-# ---------- Stage 1: Build & publish F# engine with .NET 10 (LTS)
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS fs-build
-WORKDIR /src
+# Set working directory
+WORKDIR /app
 
-# Copy only the F# engine project to leverage Docker cache effectively
-COPY calculations/ ./calculations/
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive
 
-# Restore & publish self-contained for Linux x64
-RUN dotnet restore ./calculations \
- && dotnet publish ./calculations -c Release \
-      -r linux-x64 \
-      --self-contained true \
-      /p:PublishSingleFile=true
-
-# ---------- Stage 2: FastAPI app (Python) + engine artifacts
-FROM python:3.10-slim
-
-# Avoid interactive debconf prompts in CI
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Keep ICU & tzdata if engine uses globalization.
-# If <InvariantGlobalization>true</InvariantGlobalization> is set in the project, remove these packages.
-
-# ---- ADD THIS BLOCK (replaces the fixed install) ----
+# Install system dependencies with version-aware libicu handling
 RUN set -eux; \
     . /etc/os-release; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        postgresql-client \
+        libpq-dev \
+        curl \
+        ca-certificates; \
     if [ "${VERSION_CODENAME:-}" = "trixie" ]; then \
-        apt-get update && apt-get install -y --no-install-recommends ca-certificates libicu76 tzdata; \
+        apt-get install -y --no-install-recommends libicu76 tzdata; \
     elif [ "${VERSION_CODENAME:-}" = "bookworm" ]; then \
-        apt-get update && apt-get install -y --no-install-recommends ca-certificates libicu72 tzdata; \
+        apt-get install -y --no-install-recommends libicu72 tzdata; \
     else \
-        apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata; \
-        # Try a generic 'libicu' if available; otherwise prompt for correct libicuXX
-        apt-get install -y --no-install-recommends libicu || \
-        (echo "Please install the correct libicuXX for ${VERSION_CODENAME}" && exit 1); \
+        apt-get install -y --no-install-recommends tzdata; \
+        apt-get install -y --no-install-recommends libicu || true; \
     fi; \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Copy requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the published engine from the SDK stage
-COPY --from=fs-build /src/calculations/bin/Release/net10.0/linux-x64/publish/ /app/engine/
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
 
-# Path to the engine binary (adjust name if your output differs)
-ENV FSHARP_EXEC_PATH=/app/engine/FinanceCore
-
-# Copy the rest of the FastAPI app
+# Copy application code
 COPY . .
 
+# Create necessary directories
+RUN mkdir -p /app/static /app/templates /app/logs
+
+# Expose port
 EXPOSE 8000
 
+# Run the application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

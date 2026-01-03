@@ -1,52 +1,73 @@
-# Base image
-FROM python:3.10-slim
+version: '3.8'
 
-# ---- ADD THIS BLOCK (replaces the fixed install) ----
-# Installs correct dependencies (libicu, tzdata) based on Debian version (bookworm/trixie)
-RUN set -eux; \
-    . /etc/os-release; \
-    if [ "${VERSION_CODENAME:-}" = "trixie" ]; then \
-        apt-get update && apt-get install -y --no-install-recommends ca-certificates libicu76 tzdata; \
-    elif [ "${VERSION_CODENAME:-}" = "bookworm" ]; then \
-        apt-get update && apt-get install -y --no-install-recommends ca-certificates libicu72 tzdata; \
-    else \
-        apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata; \
-        # Try a generic 'libicu' if available; otherwise prompt for correct libicuXX
-        apt-get install -y --no-install-recommends libicu || \
-        (echo "Please install the correct libicuXX for ${VERSION_CODENAME}" && exit 1); \
-    fi; \
-    rm -rf /var/lib/apt/lists/*
-# ---- END BLOCK ----
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: finance_db
+    environment:
+      POSTGRES_USER: financeuser
+      POSTGRES_PASSWORD: financepass
+      POSTGRES_DB: financedb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U financeuser -d financedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finance_network
 
-# Install .NET SDK (Required for F# Engine)
-# Note: We explicitly install wget here since the block above cleaned up apt lists
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget && \
-    wget https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -O packages-microsoft-prod.deb && \
-    dpkg -i packages-microsoft-prod.deb && \
-    rm packages-microsoft-prod.deb && \
-    apt-get update && \
-    apt-get install -y dotnet-sdk-6.0 && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+  redis:
+    image: redis:7-alpine
+    container_name: finance_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finance_network
 
-WORKDIR /app
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: finance_app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://financeuser:financepass@db:5432/financedb
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=your-secret-key-change-in-production-min-32-characters
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - DEBUG=True
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - finance_network
+    restart: unless-stopped
 
-# 1. Build F# Calculation Engine
-COPY calculations/ /app/calculations/
-WORKDIR /app/calculations
-RUN dotnet build -c Release -o bin/Release/net6.0
+volumes:
+  postgres_data:
+  redis_data:
 
-# 2. Setup Python App
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy Application Code
-COPY . .
-
-# Environment variable for F# binary path
-ENV FSHARP_EXEC_PATH="/app/calculations/bin/Release/net6.0/FinanceCore"
-ENV PYTHONUNBUFFERED=1
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+networks:
+  finance_network:
+    driver: bridge
