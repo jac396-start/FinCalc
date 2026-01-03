@@ -1,5 +1,6 @@
-# ---------- Stage 1: Build & publish F# engine with .NET 10 (LTS)
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS fs-build
+# ---------- Stage 1: Build & publish F# engine with .NET 6.0 (LTS)
+# CHANGED: 10.0 -> 6.0 (10.0 does not exist yet, and your proj is likely 6.0)
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS fs-build
 WORKDIR /src
 
 # Copy only the F# engine project to leverage Docker cache effectively
@@ -53,9 +54,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the published engine from the SDK stage
-COPY --from=fs-build /src/calculations/bin/Release/net10.0/linux-x64/publish/ /app/engine/
+# CHANGED: net10.0 -> net6.0
+COPY --from=fs-build /src/calculations/bin/Release/net6.0/linux-x64/publish/ /app/engine/
 
-# Path to the engine binary (adjust name if your output differs)
+# Path to the engine binary
 ENV FSHARP_EXEC_PATH=/app/engine/FinanceCore
 
 # Copy the rest of the FastAPI app
@@ -71,7 +73,6 @@ USER appuser
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run database initialization before starting the app
+# Expose port and run app
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
