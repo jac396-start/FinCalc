@@ -20,9 +20,22 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # If the engine uses globalization (dates, sorting, cultures), keep ICU & tzdata.
 # If you set InvariantGlobalization=true in the F# project, you can remove these to shrink the image.
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates libicu tzdata \
- && rm -rf /var/lib/apt/lists/*
+
+# ---- ADD THIS BLOCK (replaces the fixed install) ----
+RUN set -eux; \
+    . /etc/os-release; \
+    if [ "${VERSION_CODENAME:-}" = "trixie" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends ca-certificates libicu76 tzdata; \
+    elif [ "${VERSION_CODENAME:-}" = "bookworm" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends ca-certificates libicu72 tzdata; \
+    else \
+        apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata; \
+        # Try a generic 'libicu' if available; otherwise prompt for correct libicuXX
+        apt-get install -y --no-install-recommends libicu || \
+        (echo "Please install the correct libicuXX for ${VERSION_CODENAME}" && exit 1); \
+    fi; \
+    rm -rf /var/lib/apt/lists/*
+# ---- END BLOCK ----
 
 WORKDIR /app
 COPY requirements.txt .
