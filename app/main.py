@@ -32,6 +32,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError, ProgrammingError  # 
 
 import uvicorn  # ASGI server for running FastAPI apps
 
+from app.auth.jwt import get_current_user_from_cookie
+from app.operations.financial import calculate_bond, calculate_wacc, calculate_npv
+
 # Application imports
 from app.auth.dependencies import get_current_active_user  # Authentication dependency
 from app.models.calculation import Calculation  # Database model for calculations
@@ -636,6 +639,41 @@ def delete_calculation(
     return None
 
 # ------------------------------------------------------------------------------
+
+
+# Integrated route from main py1: add_calculation (form-based)
+@app.post("/calculations/add")
+def add_calculation(
+    request: Request,
+    type: str = Form(...),
+    # Flexible inputs
+    param1: float = Form(0), param2: float = Form(0), param3: float = Form(0), 
+    param4: float = Form(0), param5: float = Form(0),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_from_cookie)
+):
+    inputs = {}
+    result = 0.0
+    
+    if type == "bond":
+        inputs = {"face": param1, "coupon": param2, "market": param3, "years": int(param4)}
+        result = calculate_bond(param1, param2, param3, int(param4))
+    
+    elif type == "wacc":
+        inputs = {"equity": param1, "debt": param2, "cost_e": param3, "cost_d": param4, "tax": param5}
+        result = calculate_wacc(param1, param2, param3, param4, param5)
+        
+    elif type == "npv":
+        # Hack for demo: param1 is rate, param2 is first flow, etc...
+        # In production, use JSON body or clearer form fields
+        flows = [param2, param3, param4, param5] 
+        inputs = {"rate": param1, "flows": flows}
+        result = calculate_npv(param1, flows)
+
+    new_calc = Calculation(user_id=user.id, type=type, inputs=inputs, result=result)
+    db.add(new_calc)
+    db.commit()
+    return RedirectResponse(url="/dashboard", status_code=303)
 # Statistics and History Endpoints (Reports Feature)
 # ------------------------------------------------------------------------------
 @app.get(
