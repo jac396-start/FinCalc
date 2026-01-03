@@ -1,42 +1,124 @@
-name: CI/CD Pipeline
 
-on: [push, pull_request]
+name: CI/CD (Integrated)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [ postgres, sqlite ]
+
+    # Postgres service is started only for the postgres matrix run
+    services:
+      postgres:
+        if: matrix.db == 'postgres'
+        image: postgres:latest
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: mytestdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    # Setup Python
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      # Python setup
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    # Setup .NET for F#
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '6.0.x'
-    
-    # Build F# Engine
-    - name: Build F# Engine
-      run: |
-        cd calculations
-        dotnet build -c Release
+      # Cache pip
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-    # Install Python Deps
-    - name: Install Dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install pytest playwright
-        playwright install
+      # .NET setup and F# build (from test yml1)
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
 
-    # Run Tests
-    - name: Run Pytest
-      env:
-        FSHARP_EXEC_PATH: ./calculations/bin/Release/net6.0/FinanceCore
-        # Use SQLite for CI testing to avoid spinning up Postgres
-        DATABASE_URL: sqlite:///./test.db
-      run: pytest tests/
+      - name: Build F# Engine
+        run: |
+          cd calculations
+          dotnet build -c Release
+
+      # Dependencies (combines both files, with Playwright)
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest playwright
+          playwright install
+
+      # Run tests; DATABASE_URL varies by matrix target
+      - name: Run tests
+        env:
+          FSHARP_EXEC_PATH: ./calculations/bin/Release/net6.0/FinanceCore
+          DATABASE_URL: ${{ matrix.db == 'postgres' && 'postgresql://user:password@localhost:5432/mytestdb' || 'sqlite:///./test.db' }}
+        run: |
+          source venv/bin/activate
+          # 1) Unit tests
+          pytest tests/unit/ --cov=src --junitxml=test-results/junit.xml
+          # 2) Integration tests
+          pytest tests/integration/
+          # 3) E2E tests
+          pytest tests/e2e/
+
+  security:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t app:test .
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'app:test'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+  deploy:
+    needs: security
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: |
+            jcrawford169/fincalc:latest
+            jcrawford169/fincalc:${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=registry,ref=jcrawford169/fincalc:cache
+          cache-to: type=inline,mode=max
+``
+
